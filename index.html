@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0f14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<meta name="description" content="我的小金库 · 银行卡余额汇总 + 攒钱目标进度">
+<title>我的小金库</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#131a23; --panel2:#18212c; --line:#243040;
+    --text:#e8eef6; --muted:#8b98a9; --accent:#3ddc97; --accent2:#4cc9f0;
+    --amber:#f9c74f; --danger:#ff6b81;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;color:var(--text);min-height:100vh;
+    background:
+      radial-gradient(1100px 560px at 15% -10%, rgba(61,220,151,.10), transparent 60%),
+      radial-gradient(900px 480px at 110% 5%, rgba(76,201,240,.10), transparent 55%),
+      var(--bg);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .wrap{max-width:560px;margin:0 auto;padding:0 16px calc(40px + env(safe-area-inset-bottom))}
+
+  /* header */
+  header.top{display:flex;align-items:center;justify-content:space-between;padding:26px 0 18px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand .logo{font-size:30px;line-height:1;filter:drop-shadow(0 4px 14px rgba(61,220,151,.35))}
+  .brand h1{margin:0;font-size:18px;letter-spacing:.5px}
+  .brand .hint{margin:3px 0 0;font-size:11px;color:var(--muted)}
+  .icon-btn{background:var(--panel);border:1px solid var(--line);color:var(--text);width:40px;height:40px;border-radius:12px;font-size:17px;cursor:pointer;display:grid;place-items:center;transition:.2s}
+  .icon-btn:hover{border-color:#3a4a60;transform:translateY(-1px)}
+  .top-actions{display:flex;gap:8px}
+  .has-dot{position:relative}
+  .has-dot .dot{position:absolute;right:6px;bottom:6px;width:8px;height:8px;border-radius:50%;background:#3f4d5e;border:2px solid var(--bg);transition:background .25s}
+  .has-dot[data-state="ok"] .dot{background:var(--accent)}
+  .has-dot[data-state="syncing"] .dot{background:var(--amber);animation:dot-pulse 1s ease-in-out infinite}
+  .has-dot[data-state="error"] .dot{background:var(--danger)}
+  .has-dot[data-state="idle"] .dot{background:var(--accent2)}
+  @keyframes dot-pulse{50%{opacity:.35;transform:scale(.8)}}
+
+  /* hero */
+  .hero{display:flex;align-items:center;gap:16px;padding:20px 18px;border-radius:24px;
+    background:linear-gradient(160deg,rgba(255,255,255,.055),rgba(255,255,255,.012));
+    border:1px solid var(--line);backdrop-filter:blur(8px);box-shadow:0 18px 50px rgba(0,0,0,.35)}
+  .ring-wrap{position:relative;width:132px;height:132px;flex:0 0 auto}
+  .ring{width:100%;height:100%;display:block}
+  .ring-bg{fill:none;stroke:#1c2633;stroke-width:10}
+  .ring-fg{fill:none;stroke:url(#ringGrad);stroke-width:10;stroke-linecap:round;
+    transform:rotate(-90deg);transform-origin:60px 60px;transition:stroke-dashoffset .9s cubic-bezier(.22,1,.36,1)}
+  .ring-label{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;pointer-events:none}
+  .ring-label b{font-size:27px;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+  .ring-label span{font-size:11px;color:var(--muted)}
+  .hero-info{flex:1;min-width:0}
+  .hero-info .label{font-size:12px;color:var(--muted);margin-bottom:2px}
+  .big{font-size:clamp(22px,6.2vw,31px);font-weight:800;letter-spacing:-.5px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .goal-row{margin-top:6px;font-size:13px;color:var(--muted);line-height:1.55}
+  .goal-row .rem{color:var(--amber);font-weight:700}
+  .pace{margin-top:8px;font-size:12.5px;color:var(--muted);line-height:1.6}
+  .pace .accent,.goal-row .accent{color:var(--accent);font-weight:700}
+  .vibe{margin-top:8px;font-size:13px;line-height:1.5}
+
+  /* fun chips */
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .chip{font-size:12.5px;color:var(--muted);background:var(--panel);border:1px solid var(--line);padding:7px 11px;border-radius:999px;white-space:nowrap}
+  .chip b{color:var(--text);font-variant-numeric:tabular-nums}
+
+  /* sections */
+  .section{margin-top:22px}
+  .sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .sec-title{margin:0;font-size:13px;font-weight:600;color:var(--muted);letter-spacing:1px}
+  .sec-sub{font-size:11.5px;color:#56667a}
+  .add-btn{background:rgba(61,220,151,.10);border:1px solid rgba(61,220,151,.35);color:var(--accent);font-size:13px;font-weight:600;padding:8px 13px;border-radius:999px;cursor:pointer;transition:.2s;font-family:inherit}
+  .add-btn:hover{background:rgba(61,220,151,.18)}
+
+  /* accounts */
+  .acc{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:9px}
+  .avatar{width:40px;height:40px;flex:0 0 auto;border-radius:13px;display:grid;place-items:center;font-weight:700;font-size:16px;color:#fff;
+    background:linear-gradient(135deg,hsl(var(--h) 65% 52%),hsl(calc(var(--h) + 45) 65% 42%));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.25)}
+  .acc-main{flex:1;min-width:0}
+  .acc-name{font-size:14.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .acc-type{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .balance{background:none;border:none;color:var(--text);font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;cursor:pointer;padding:6px 2px;border-bottom:1px dashed transparent;border-radius:6px;font-family:inherit}
+  .balance:hover{border-bottom-color:var(--muted)}
+  .balance-input{width:132px;background:#0a0e13;border:1px solid var(--accent);color:var(--text);border-radius:8px;padding:6px 8px;font-size:17px;font-weight:700;text-align:right;font-family:inherit;outline:none}
+  .del{background:none;border:none;color:#41526a;font-size:14px;cursor:pointer;padding:8px 2px 8px 8px;line-height:1}
+  .del:hover{color:var(--danger)}
+  .total-row{display:flex;justify-content:space-between;align-items:baseline;padding:6px 4px 0;font-size:12.5px;color:var(--muted)}
+  .total-row b{font-size:15px;color:var(--text);font-variant-numeric:tabular-nums}
+  .empty{border:1px dashed #2b3a4e;border-radius:16px;padding:22px 16px;text-align:center;color:var(--muted);font-size:13px;line-height:1.9}
+  .link-btn{background:none;border:none;color:var(--accent);font-size:12.5px;cursor:pointer;padding:4px;text-decoration:underline dotted;font-family:inherit}
+  .link-btn:hover{color:#7fe8bb}
+
+  /* chart */
+  .chart{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 14px 10px}
+  .spark{display:block;width:100%;height:92px}
+  .chart-empty{height:92px;display:grid;place-items:center;color:var(--muted);font-size:13px;text-align:center;line-height:1.7}
+  .chart-foot{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:8px}
+  .chart-foot b{font-variant-numeric:tabular-nums}
+  .up{color:var(--accent)} .down{color:var(--danger)}
+
+  /* footer */
+  footer.foot{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:28px;padding-top:16px;border-top:1px solid #1a2330}
+  .foot-btn{background:var(--panel);border:1px solid var(--line);color:var(--muted);font-size:12.5px;padding:8px 13px;border-radius:10px;cursor:pointer;font-family:inherit}
+  .foot-btn:hover{color:var(--text);border-color:#33445a}
+  .foot-note{font-size:11.5px;color:#56667a;margin-left:auto}
+
+  /* dialogs */
+  dialog{border:1px solid #2a3a4e;border-radius:20px;background:linear-gradient(170deg,#1a2431,#141b25);color:var(--text);padding:22px 20px;width:min(92vw,380px);box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  dialog::backdrop{background:rgba(4,7,11,.65);backdrop-filter:blur(4px)}
+  dialog h3{margin:0 0 14px;font-size:17px}
+  dialog label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:12px}
+  dialog input,dialog select{width:100%;margin-top:6px;background:#0b1119;border:1px solid #2a3a4e;border-radius:11px;padding:11px 12px;color:var(--text);font-size:16px;font-family:inherit;outline:none}
+  dialog input:focus,dialog select:focus{border-color:var(--accent)}
+  .dlg-hint{font-size:11.5px;color:#5e7086;margin:-4px 0 14px;line-height:1.6}
+  .dlg-actions{display:flex;gap:10px;margin-top:6px}
+  .dlg-actions button{flex:1;border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid transparent}
+  .primary{background:var(--accent);color:#062415}
+  .primary:hover{filter:brightness(1.06)}
+  .ghost{background:transparent;border-color:#2a3a4e;color:var(--muted)}
+  .ghost:hover{color:var(--text)}
+  .danger-link{margin-top:16px;background:none;border:none;color:#7a4a55;font-size:12px;cursor:pointer;font-family:inherit;text-decoration:underline dotted;padding:0}
+  .danger-link:hover{color:var(--danger)}
+
+  /* sync */
+  .sync-status{font-size:12px;color:var(--muted);margin-top:12px;line-height:1.55;min-height:1.1em}
+  .sync-status.sync-error{color:var(--danger)}
+  .sync-info{font-size:12.5px;color:var(--text);background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:11px;padding:10px 12px;line-height:1.7;margin-top:12px}
+  .sync-row{display:flex;align-items:center;gap:14px;margin-top:14px;flex-wrap:wrap}
+  .sync-row .foot-btn{padding:8px 12px;font-size:12px}
+  .sync-row .danger-link{margin-top:0}
+  .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translate(-50%,16px);background:rgba(22,32,44,.96);border:1px solid #2e4156;color:var(--text);font-size:13px;padding:10px 18px;border-radius:999px;box-shadow:0 14px 44px rgba(0,0,0,.55);opacity:0;transition:.22s;z-index:1200;pointer-events:none;max-width:88vw;text-align:center}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+
+  /* confetti */
+  .confetti{position:fixed;top:-16px;z-index:999;pointer-events:none;border-radius:2px;animation:confetti-fall 2.6s linear forwards}
+  @keyframes confetti-fall{to{transform:translateY(112vh) rotate(760deg)}}
+
+  @media (max-width:400px){
+    .hero{gap:12px;padding:16px 14px;border-radius:20px}
+    .ring-wrap{width:112px;height:112px}
+    .ring-label b{font-size:23px}
+    .big{font-size:22px}
+    .balance,.balance-input{font-size:16px}
+    .balance-input{width:118px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <span class="logo">🐷</span>
+      <div>
+        <h1>我的小金库</h1>
+        <p class="hint">纯本地 · 可选加密云同步</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button id="btnSync" class="icon-btn has-dot" data-state="off" title="云同步">☁️<i class="dot"></i></button>
+      <button id="btnSettings" class="icon-btn" title="设置">⚙️</button>
+    </div>
+  </header>
+
+  <main id="app"></main>
+
+  <footer class="foot">
+    <button class="foot-btn" data-action="export">⤓ 导出备份</button>
+    <button class="foot-btn" data-action="import">⤒ 导入备份</button>
+    <input id="fileInput" type="file" accept="application/json,.json" hidden>
+    <span class="foot-note">纯本地 · 数据加密 · 无服务器</span>
+  </footer>
+</div>
+
+<dialog id="dlgCard">
+  <form id="formCard" autocomplete="off">
+    <h3>添加一张卡</h3>
+    <label>银行 / 卡名
+      <input name="name" maxlength="30" placeholder="比如：招商银行 · 工资卡" required>
+    </label>
+    <label>类型
+      <select name="type">
+        <option>活期</option><option>定期</option><option>理财</option>
+        <option>信用卡</option><option>现金</option><option>其他</option>
+      </select>
+    </label>
+    <label>当前余额（元）
+      <input name="balance" type="number" step="0.01" inputmode="decimal" placeholder="0">
+    </label>
+    <p class="dlg-hint">信用卡欠款填负数，比如 -3200。</p>
+    <div class="dlg-actions">
+      <button type="button" class="ghost" data-close>取消</button>
+      <button type="submit" class="primary">添加</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlgSettings">
+  <form id="formSettings" autocomplete="off">
+    <h3>设置</h3>
+    <label>攒钱目标（元）
+      <input name="amount" type="number" min="0" step="1000" placeholder="250000">
+    </label>
+    <label>每月能存多少（元）
+      <input name="monthly" type="number" min="0" step="100" placeholder="比如 5000">
+    </label>
+    <p class="dlg-hint">填了每月金额，首页会算出预计达成时间。</p>
+    <div class="dlg-actions">
+      <button type="button" class="ghost" data-close>取消</button>
+      <button type="submit" class="primary">保存</button>
+    </div>
+    <button type="button" class="danger-link" id="btnClear">清空所有数据…</button>
+  </form>
+</dialog>
+
+<dialog id="dlgSync">
+  <form id="formSync" autocomplete="off">
+    <h3>云同步</h3>
+    <p class="dlg-hint">数据先在本机加密，再存进你自己的 GitHub 仓库。手机和电脑填同样的仓库、令牌、同步密码，就能同步。</p>
+    <label>GitHub 仓库
+      <input name="repo" placeholder="你的用户名/xiaojinku" required>
+    </label>
+    <label>访问令牌（PAT）
+      <input name="token" type="password" placeholder="github_pat_…" required>
+    </label>
+    <label>同步密码
+      <input name="pass" type="password" minlength="6" placeholder="自己定，至少 6 位" required>
+    </label>
+    <p class="dlg-hint">令牌只需这个仓库的 Contents 读写权限；同步密码只负责加密，不会上传。</p>
+    <div class="dlg-actions">
+      <button type="button" class="ghost" data-close>关闭</button>
+      <button type="submit" class="primary">保存并同步</button>
+    </div>
+    <div id="syncInfo" class="sync-info" hidden></div>
+    <div id="syncChoice" hidden>
+      <div class="dlg-actions">
+        <button type="button" class="ghost" id="btnUseRemote">用云端</button>
+        <button type="button" class="primary" id="btnUseLocal">用本机</button>
+      </div>
+    </div>
+    <div class="sync-status" id="syncStatus">未开启</div>
+    <div class="sync-row">
+      <button type="button" class="foot-btn" id="btnSyncNow" hidden>立即同步</button>
+      <button type="button" class="danger-link" id="btnDisconnect" hidden>断开同步</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(() => {
+  'use strict';
+
+  const KEY = 'xiaojinku.v1';
+  const RING_C = 2 * Math.PI * 52;
+
+  /* ---------- utils ---------- */
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const uid = () => (crypto.randomUUID
+    ? crypto.randomUUID()
+    : 'id' + Date.now() + Math.random().toString(36).slice(2, 8));
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  function fmtMoney(n) {
+    const v = Number(n) || 0;
+    return (v < 0 ? '-¥' : '¥') + Math.abs(v).toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+  }
+
+  const pad2 = n => String(n).padStart(2, '0');
+  const todayStr = () => {
+    const d = new Date();
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  };
+
+  function fmtMonth(months) {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + months);
+    return d.getFullYear() + '年' + (d.getMonth() + 1) + '月';
+  }
+
+  function hashHue(str) {
+    let h = 0;
+    for (const ch of String(str)) h = (h * 31 + ch.codePointAt(0)) % 360;
+    return h;
+  }
+
+  /* ---------- state ---------- */
+  const DEFAULT_STATE = () => ({
+    goal: { amount: 250000, monthly: 0 },
+    accounts: [],
+    snapshots: [],
+    updatedAt: ''
+  });
+
+  function normalize(raw) {
+    const o = (raw && typeof raw === 'object') ? raw : {};
+    const g = (o.goal && typeof o.goal === 'object') ? o.goal : {};
+    const amount = Number(g.amount);
+    const monthly = Number(g.monthly);
+    return {
+      goal: {
+        amount: Number.isFinite(amount) && amount >= 0 ? amount : 250000,
+        monthly: Number.isFinite(monthly) && monthly >= 0 ? monthly : 0
+      },
+      accounts: Array.isArray(o.accounts) ? o.accounts.map(a => ({
+        id: String(a && a.id || uid()),
+        name: String(a && a.name || '银行卡'),
+        type: String(a && a.type || '其他'),
+        balance: Number(a && a.balance) || 0
+      })) : [],
+      snapshots: Array.isArray(o.snapshots) ? o.snapshots
+        .filter(s => s && typeof s.date === 'string' && Number.isFinite(Number(s.total)))
+        .map(s => ({ date: s.date, total: Number(s.total) })) : [],
+      updatedAt: typeof o.updatedAt === 'string' ? o.updatedAt : ''
+    };
+  }
+
+  let state;
+  try {
+    const raw = localStorage.getItem(KEY);
+    state = raw ? normalize(JSON.parse(raw)) : DEFAULT_STATE();
+  } catch (err) {
+    state = DEFAULT_STATE();
+  }
+
+  const total = () => state.accounts.reduce((sum, a) => sum + (Number(a.balance) || 0), 0);
+
+  function upsertSnapshot() {
+    const d = todayStr();
+    const t = total();
+    const last = state.snapshots[state.snapshots.length - 1];
+    if (last && last.date === d) last.total = t;
+    else state.snapshots.push({ date: d, total: t });
+    if (state.snapshots.length > 500) state.snapshots = state.snapshots.slice(-500);
+  }
+
+  function persist() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); }
+    catch (err) { console.warn('本地保存失败', err); }
+  }
+
+  function save() {
+    state.updatedAt = new Date().toISOString();
+    upsertSnapshot();
+    persist();
+    schedulePush();
+  }
+
+  /* ---------- compute ---------- */
+  function compute() {
+    const t = total();
+    const goal = Number(state.goal.amount) || 0;
+    const pct = goal > 0 ? (t / goal) * 100 : 0;
+    const remaining = Math.max(goal - t, 0);
+    const monthly = Number(state.goal.monthly) || 0;
+    const months = remaining > 0 && monthly > 0 ? Math.ceil(remaining / monthly) : 0;
+    return { t, goal, pct, remaining, monthly, months };
+  }
+
+  function vibe(pct) {
+    if (pct >= 100) return '🎉 目标达成，请给自己加个鸡腿！';
+    if (pct >= 75) return '💪 就差临门一脚了，稳住！';
+    if (pct >= 50) return '🚀 过半了，这条路比想象中短。';
+    if (pct >= 25) return '🌱 已经攒下一小半，继续浇水。';
+    if (pct > 0) return '🐣 万事开头难，第一步已经迈出去了。';
+    return '👋 先加一张银行卡，开始记录吧。';
+  }
+
+  /* ---------- render ---------- */
+  function render() {
+    const c = compute();
+    $('#app').innerHTML = renderHero(c) + renderChips(c) + renderAccounts(c) + renderHistory();
+    if (c.pct >= 100) maybeCelebrate();
+  }
+
+  function renderHero(c) {
+    const pctShown = Math.round(c.pct);
+    const ringPct = Math.min(Math.max(c.pct, 0), 100);
+    const offset = RING_C * (1 - ringPct / 100);
+    let pace;
+    if (c.remaining <= 0) {
+      pace = '🎉 目标已达成，<span class="accent">给自己点个赞</span>。';
+    } else if (c.monthly > 0) {
+      pace = '按每月存 ' + fmtMoney(c.monthly) + '，还要 <b class="accent">' + c.months +
+        '</b> 个月，预计 <span class="accent">' + fmtMonth(c.months) + '</span> 达成。';
+    } else {
+      pace = '<button class="link-btn" data-action="open-settings">设置「每月能存多少」</button>，我帮你算预计达成时间。';
+    }
+    return `
+    <section class="hero">
+      <div class="ring-wrap">
+        <svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
+          <defs>
+            <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#3ddc97"/>
+              <stop offset="100%" stop-color="#4cc9f0"/>
+            </linearGradient>
+          </defs>
+          <circle class="ring-bg" cx="60" cy="60" r="52"/>
+          <circle class="ring-fg" cx="60" cy="60" r="52"
+            style="stroke-dasharray:${RING_C.toFixed(2)};stroke-dashoffset:${offset.toFixed(2)}"/>
+        </svg>
+        <div class="ring-label"><b>${pctShown}%</b><span>${c.pct >= 100 ? '已达成' : '完成度'}</span></div>
+      </div>
+      <div class="hero-info">
+        <div class="label">总资产</div>
+        <div class="big">${fmtMoney(c.t)}</div>
+        <div class="goal-row">目标 ${fmtMoney(c.goal)}<br>还差 <span class="rem">${fmtMoney(c.remaining)}</span></div>
+        <div class="pace">${pace}</div>
+        <div class="vibe">${vibe(c.pct)}</div>
+      </div>
+    </section>`;
+  }
+
+  const FUN_ITEMS = [
+    ['🧋', '杯奶茶', 18],
+    ['📱', '台 iPhone', 7999],
+    ['🏠', '个月房租', 3500],
+    ['✈️', '趟日本旅行', 12000],
+    ['🍲', '顿火锅', 200]
+  ];
+
+  function renderChips(c) {
+    if (c.remaining <= 0) {
+      return `<div class="chips"><span class="chip">✅ 目标已达成</span></div>`;
+    }
+    const chips = FUN_ITEMS
+      .filter(([, , price]) => c.remaining / price >= 1)
+      .slice(0, 3)
+      .map(([emoji, unit, price]) => {
+        const n = Math.floor(c.remaining / price);
+        return `<span class="chip">${emoji} 还差 <b>${n.toLocaleString('zh-CN')}</b> ${unit}</span>`;
+      });
+    return chips.length ? `<div class="chips">${chips.join('')}</div>` : '';
+  }
+
+  function firstChar(name) {
+    const s = String(name).trim();
+    return s ? Array.from(s)[0] : '银';
+  }
+
+  function renderAccounts(c) {
+    const rows = state.accounts.map(a => {
+      const hue = hashHue(a.name);
+      return `
+      <div class="acc">
+        <div class="avatar" style="--h:${hue}">${escapeHtml(firstChar(a.name))}</div>
+        <div class="acc-main">
+          <div class="acc-name">${escapeHtml(a.name)}</div>
+          <div class="acc-type">${escapeHtml(a.type)}</div>
+        </div>
+        <button class="balance" data-action="edit-balance" data-id="${escapeHtml(a.id)}" title="点击修改">${fmtMoney(a.balance)}</button>
+        <button class="del" data-action="del-account" data-id="${escapeHtml(a.id)}" title="删除">✕</button>
+      </div>`;
+    }).join('');
+
+    const empty = state.accounts.length ? '' : `
+      <div class="empty">
+        还没有卡～<br>
+        点右上角「＋ 添加」，把各张卡的余额录进来。<br>
+        <button class="link-btn" data-action="seed-demo">先放几条示例数据看看效果</button>
+      </div>`;
+
+    return `
+    <section class="section">
+      <div class="sec-head">
+        <h2 class="sec-title">我的卡 · ${state.accounts.length} 张</h2>
+        <button class="add-btn" data-action="open-add">＋ 添加</button>
+      </div>
+      ${rows}
+      ${empty}
+      <div class="total-row"><span>合计</span><b>${fmtMoney(c.t)}</b></div>
+    </section>`;
+  }
+
+  function renderHistory() {
+    const snaps = state.snapshots.slice(-30);
+    let body;
+    if (snaps.length < 2) {
+      body = `<div class="chart"><div class="chart-empty">今天开始记录啦，明天再打开<br>就能看到总资产的走势曲线 📈</div></div>`;
+    } else {
+      const W = 320, H = 92, P = 6;
+      const vals = snaps.map(s => s.total);
+      const min = Math.min(...vals);
+      const max = Math.max(...vals);
+      const span = (max - min) || 1;
+      const pts = snaps.map((s, i) => {
+        const x = P + (i / (snaps.length - 1)) * (W - P * 2);
+        const y = P + (1 - (s.total - min) / span) * (H - P * 2);
+        return [x, y];
+      });
+      const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+      const area = 'M' + pts[0][0].toFixed(1) + ',' + H + ' ' +
+        pts.map(p => 'L' + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ') +
+        ' L' + pts[pts.length - 1][0].toFixed(1) + ',' + H + ' Z';
+      const diff = vals[vals.length - 1] - vals[vals.length - 2];
+      body = `
+      <div class="chart">
+        <svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#3ddc97" stop-opacity=".32"/>
+              <stop offset="100%" stop-color="#3ddc97" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <path d="${area}" fill="url(#areaGrad)"/>
+          <path d="${line}" fill="none" stroke="#3ddc97" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+        </svg>
+        <div class="chart-foot">
+          <span>最近 ${snaps.length} 次记录</span>
+          <span>较上次 <b class="${diff >= 0 ? 'up' : 'down'}">${(diff >= 0 ? '+' : '') + fmtMoney(diff)}</b></span>
+        </div>
+      </div>`;
+    }
+    return `<section class="section">
+      <div class="sec-head">
+        <h2 class="sec-title">资产走势</h2>
+        <span class="sec-sub">打开页面 / 改余额时自动记一笔</span>
+      </div>
+      ${body}
+    </section>`;
+  }
+
+  function maybeCelebrate() {
+    const key = 'celebrated:' + todayStr();
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, '1');
+    } catch (e) { return; }
+    const colors = ['#3ddc97', '#4cc9f0', '#f9c74f', '#ff6b81', '#b388ff'];
+    for (let i = 0; i < 70; i++) {
+      const el = document.createElement('span');
+      el.className = 'confetti';
+      el.style.left = Math.random() * 100 + 'vw';
+      el.style.background = colors[i % colors.length];
+      el.style.animationDelay = (Math.random() * 0.9).toFixed(2) + 's';
+      el.style.animationDuration = (2.2 + Math.random() * 1.4).toFixed(2) + 's';
+      el.style.width = (6 + Math.random() * 6).toFixed(0) + 'px';
+      el.style.height = (10 + Math.random() * 8).toFixed(0) + 'px';
+      el.addEventListener('animationend', () => el.remove());
+      document.body.appendChild(el);
+    }
+  }
+
+  /* ---------- actions ---------- */
+  const dlgCard = $('#dlgCard');
+  const dlgSettings = $('#dlgSettings');
+  const formCard = $('#formCard');
+  const formSettings = $('#formSettings');
+
+  function openDialog(dlg) {
+    if (dlg && typeof dlg.showModal === 'function') dlg.showModal();
+  }
+
+  function openSettings() {
+    formSettings.elements.amount.value = state.goal.amount;
+    formSettings.elements.monthly.value = state.goal.monthly;
+    openDialog(dlgSettings);
+  }
+
+  function startEditBalance(btn, id) {
+    const acc = state.accounts.find(a => a.id === id);
+    if (!acc) return;
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.step = '0.01';
+    input.inputMode = 'decimal';
+    input.className = 'balance-input';
+    input.value = acc.balance;
+    let committed = false;
+    const commit = () => {
+      if (committed) return;
+      committed = true;
+      const v = parseFloat(input.value);
+      if (Number.isFinite(v)) acc.balance = v;
+      save();
+      render();
+    };
+    input.addEventListener('keydown', ev => {
+      if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
+      else if (ev.key === 'Escape') { input.value = String(acc.balance); commit(); }
+    });
+    input.addEventListener('blur', commit);
+    btn.replaceWith(input);
+    input.focus();
+    input.select();
+  }
+
+  function deleteAccount(id) {
+    const acc = state.accounts.find(a => a.id === id);
+    if (!acc) return;
+    if (!confirm('删除「' + acc.name + '」？')) return;
+    state.accounts = state.accounts.filter(a => a.id !== id);
+    save();
+    render();
+  }
+
+  function seedDemo() {
+    state.accounts = [
+      { id: uid(), name: '招商银行 · 工资卡', type: '活期', balance: 52000 },
+      { id: uid(), name: '工商银行 · 定期', type: '定期', balance: 98000 },
+      { id: uid(), name: '微信零钱', type: '现金', balance: 12500 }
+    ];
+    state.goal = { amount: 250000, monthly: 6000 };
+    save();
+    render();
+  }
+
+  function exportBackup() {
+    const payload = { app: 'xiaojinku', version: 1, exportedAt: new Date().toISOString(), state };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '小金库备份-' + todayStr() + '.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  $('#fileInput').addEventListener('change', ev => {
+    const file = ev.target.files && ev.target.files[0];
+    ev.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result));
+        const incoming = parsed && parsed.state ? parsed.state : parsed;
+        if (!incoming || !Array.isArray(incoming.accounts)) throw new Error('文件格式不对');
+        if (!confirm('导入会覆盖现在的数据，继续？')) return;
+        state = normalize(incoming);
+        save();
+        render();
+        alert('导入成功 ✅');
+      } catch (err) {
+        alert('导入失败：' + (err && err.message ? err.message : '文件读不出来'));
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  formCard.addEventListener('submit', ev => {
+    ev.preventDefault();
+    const fd = new FormData(formCard);
+    const name = String(fd.get('name') || '').trim();
+    const balance = parseFloat(String(fd.get('balance') || '0'));
+    state.accounts.push({
+      id: uid(),
+      name: name,
+      type: String(fd.get('type') || '其他'),
+      balance: Number.isFinite(balance) ? balance : 0
+    });
+    save();
+    render();
+    dlgCard.close();
+    formCard.reset();
+  });
+
+  formSettings.addEventListener('submit', ev => {
+    ev.preventDefault();
+    const fd = new FormData(formSettings);
+    const amount = parseFloat(String(fd.get('amount') || '0'));
+    const monthly = parseFloat(String(fd.get('monthly') || '0'));
+    state.goal.amount = Number.isFinite(amount) && amount >= 0 ? amount : 0;
+    state.goal.monthly = Number.isFinite(monthly) && monthly >= 0 ? monthly : 0;
+    save();
+    render();
+    dlgSettings.close();
+  });
+
+  $('#btnClear').addEventListener('click', () => {
+    if (!confirm('确定清空所有数据？建议先导出备份。')) return;
+    const hadSync = !!(syncCfg && syncCfg.enabled);
+    try { localStorage.removeItem(KEY); } catch (e) {}
+    try { localStorage.removeItem('celebrated:' + todayStr()); } catch (e) {}
+    resetSync();
+    state = DEFAULT_STATE();
+    save();
+    render();
+    dlgSettings.close();
+    toast(hadSync ? '已清空，云同步也断了' : '已清空');
+  });
+
+  $('#btnSettings').addEventListener('click', openSettings);
+
+  document.addEventListener('click', ev => {
+    const target = ev.target.closest('[data-action], [data-close]');
+    if (!target) return;
+    if (target.hasAttribute('data-close')) {
+      const dlg = target.closest('dialog');
+      if (dlg) dlg.close();
+      return;
+    }
+    switch (target.dataset.action) {
+      case 'open-add': openDialog(dlgCard); break;
+      case 'open-settings': openSettings(); break;
+      case 'edit-balance': startEditBalance(target, target.dataset.id); break;
+      case 'del-account': deleteAccount(target.dataset.id); break;
+      case 'seed-demo': seedDemo(); break;
+      case 'export': exportBackup(); break;
+      case 'import': $('#fileInput').click(); break;
+    }
+  });
+
+  /* ---------- 云同步：GitHub 仓库 + 本机加密 ---------- */
+  const SYNC_KEY = 'xiaojinku.sync';
+  const SYNC_FILE = 'sync/data.json';
+  const KDF_ITER = 200000;
+
+  const dlgSync = $('#dlgSync');
+  const formSync = $('#formSync');
+
+  let syncCfg = null;
+  let pendingRemote = null;
+  const sync = { status: 'off', message: '', busy: false, ready: false, timer: 0, lastSync: 0 };
+
+  function loadSyncCfg() {
+    try {
+      const raw = localStorage.getItem(SYNC_KEY);
+      if (!raw) return null;
+      const c = JSON.parse(raw);
+      if (!c || !c.repo || !c.token || !c.pass) return null;
+      return {
+        repo: String(c.repo), token: String(c.token), pass: String(c.pass),
+        enabled: c.enabled !== false, branch: String(c.branch || 'main')
+      };
+    } catch (e) { return null; }
+  }
+
+  function saveSyncCfg() {
+    try {
+      if (syncCfg && syncCfg.enabled) localStorage.setItem(SYNC_KEY, JSON.stringify(syncCfg));
+      else localStorage.removeItem(SYNC_KEY);
+    } catch (e) {}
+  }
+
+  function resetSync() {
+    clearTimeout(sync.timer);
+    syncCfg = null;
+    pendingRemote = null;
+    sync.busy = false;
+    sync.ready = false;
+    sync.status = 'off';
+    sync.message = '';
+    try { localStorage.removeItem(SYNC_KEY); } catch (e) {}
+    updateSyncUI();
+  }
+
+  function parseRepo(input) {
+    const s = String(input || '').trim()
+      .replace(/^https?:\/\/(www\.)?github\.com\//i, '')
+      .replace(/\.git$/i, '')
+      .replace(/\/+$/, '');
+    const m = s.match(/^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/);
+    return m ? { owner: m[1], repo: m[2] } : null;
+  }
+
+  function ghHeaders(token) {
+    return { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' };
+  }
+
+  async function ghErr(res) {
+    let msg = 'GitHub 返回 ' + res.status;
+    try {
+      const j = await res.json();
+      if (j && j.message) msg += '：' + j.message;
+    } catch (e) {}
+    const err = new Error(msg);
+    err.status = res.status;
+    return err;
+  }
+
+  async function ghRepoInfo(cfg) {
+    const { owner, repo } = parseRepo(cfg.repo);
+    const res = await fetch('https://api.github.com/repos/' + owner + '/' + repo, { headers: ghHeaders(cfg.token) });
+    if (!res.ok) throw await ghErr(res);
+    return res.json();
+  }
+
+  async function ghGetSyncFile(cfg) {
+    const { owner, repo } = parseRepo(cfg.repo);
+    const ref = encodeURIComponent(cfg.branch || 'main');
+    const res = await fetch(
+      'https://api.github.com/repos/' + owner + '/' + repo + '/contents/' + SYNC_FILE + '?ref=' + ref,
+      { headers: ghHeaders(cfg.token) }
+    );
+    if (res.status === 404) return null;
+    if (!res.ok) throw await ghErr(res);
+    const j = await res.json();
+    const text = new TextDecoder().decode(b64decode(j.content || ''));
+    return { text, sha: j.sha };
+  }
+
+  async function ghPutSyncFile(cfg, text, sha) {
+    const { owner, repo } = parseRepo(cfg.repo);
+    const body = {
+      message: 'sync: ' + new Date().toISOString(),
+      content: b64encode(new TextEncoder().encode(text)),
+      branch: cfg.branch || 'main'
+    };
+    if (sha) body.sha = sha;
+    const res = await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/' + SYNC_FILE, {
+      method: 'PUT',
+      headers: Object.assign(ghHeaders(cfg.token), { 'Content-Type': 'application/json' }),
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw await ghErr(res);
+    return res.json();
+  }
+
+  function b64encode(bytes) {
+    let s = '';
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      s += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return btoa(s);
+  }
+
+  function b64decode(str) {
+    const bin = atob(String(str || '').replace(/\s+/g, ''));
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  async function deriveKey(pass, salt, iterations) {
+    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt: salt, iterations: iterations, hash: 'SHA-256' },
+      base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+    );
+  }
+
+  async function encryptState() {
+    if (!window.crypto || !crypto.subtle) throw new Error('同步需要 https 页面（本地 127.0.0.1 也可以）');
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const key = await deriveKey(syncCfg.pass, salt, KDF_ITER);
+    const plain = new TextEncoder().encode(JSON.stringify(state));
+    const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, plain);
+    return JSON.stringify({
+      app: 'xiaojinku-sync',
+      v: 1,
+      updatedAt: state.updatedAt || new Date().toISOString(),
+      kdf: { salt: b64encode(salt), iter: KDF_ITER },
+      cipher: { iv: b64encode(iv), data: b64encode(new Uint8Array(cipher)) }
+    });
+  }
+
+  async function decryptPayload(cfg, text) {
+    if (!window.crypto || !crypto.subtle) throw new Error('同步需要 https 页面（本地 127.0.0.1 也可以）');
+    let payload;
+    try { payload = JSON.parse(text); } catch (e) { throw new Error('云端文件格式不对'); }
+    if (!payload || payload.app !== 'xiaojinku-sync' || !payload.cipher || !payload.kdf) throw new Error('云端文件格式不对');
+    const iter = Math.min(Math.max(Number(payload.kdf.iter) || KDF_ITER, 10000), 1000000);
+    const key = await deriveKey(cfg.pass, b64decode(payload.kdf.salt), iter);
+    let plain;
+    try {
+      plain = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: b64decode(payload.cipher.iv) },
+        key, b64decode(payload.cipher.data)
+      );
+    } catch (e) {
+      throw new Error('同步密码不对，解不开云端数据');
+    }
+    return { state: JSON.parse(new TextDecoder().decode(plain)), updatedAt: payload.updatedAt || '' };
+  }
+
+  function timeOf(iso) {
+    const t = Date.parse(String(iso || ''));
+    return Number.isFinite(t) ? t : 0;
+  }
+
+  function stateTotal(s) {
+    return (s.accounts || []).reduce((sum, a) => sum + (Number(a.balance) || 0), 0);
+  }
+
+  function friendlySyncError(err) {
+    const m = String(err && err.message ? err.message : err);
+    if (/401/.test(m)) return '令牌无效或过期了，去 GitHub 重新生成一个';
+    if (/403/.test(m)) return '没权限：令牌要给这个仓库 Contents 读写权限';
+    if (/404/.test(m)) return '找不到仓库：检查「用户名/仓库名」，或令牌没授权这个仓库';
+    if (/409|422/.test(m)) return '云端刚刚也被改了，再点一次「立即同步」';
+    if (/Failed to fetch|NetworkError|Load failed|network/i.test(m)) return '连不上 GitHub，检查网络或代理';
+    if (/密码/.test(m)) return m;
+    return m;
+  }
+
+  function applyRemote(remoteState) {
+    state = normalize(remoteState);
+    persist();
+    render();
+  }
+
+  function setSyncStatus(status, message) {
+    sync.status = status;
+    sync.message = message || '';
+    updateSyncUI();
+  }
+
+  function updateSyncUI() {
+    const on = !!(syncCfg && syncCfg.enabled);
+    const btn = $('#btnSync');
+    if (btn) {
+      let st = 'off';
+      if (on) {
+        if (sync.status === 'error') st = 'error';
+        else if (sync.status === 'syncing') st = 'syncing';
+        else if (sync.status === 'ok') st = 'ok';
+        else st = 'idle';
+      }
+      btn.dataset.state = st;
+      btn.title = '云同步：' + (sync.message || (on ? '已开启' : '未开启'));
+    }
+    const box = $('#syncStatus');
+    if (box) {
+      box.textContent = sync.message || (on ? '已开启，改完自动同步' : '未开启：数据只在本机');
+      box.className = 'sync-status' + (sync.status === 'error' ? ' sync-error' : '');
+    }
+    const now = $('#btnSyncNow');
+    if (now) now.hidden = !on;
+    const disc = $('#btnDisconnect');
+    if (disc) disc.hidden = !on;
+    const submit = formSync ? formSync.querySelector('button[type="submit"]') : null;
+    if (submit) submit.disabled = sync.busy;
+  }
+
+  let toastTimer = 0;
+  function toast(msg) {
+    let el = document.getElementById('toast');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'toast';
+      el.className = 'toast';
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+  }
+
+  function schedulePush() {
+    if (!syncCfg || !syncCfg.enabled || !sync.ready) return;
+    clearTimeout(sync.timer);
+    sync.timer = setTimeout(() => {
+      if (sync.busy) { schedulePush(); return; }
+      pushRemote(false);
+    }, 1500);
+  }
+
+  async function pushRemote(showToast) {
+    if (!syncCfg || !syncCfg.enabled || !sync.ready || sync.busy) return false;
+    sync.busy = true;
+    setSyncStatus('syncing', '正在上传…');
+    try {
+      const current = await ghGetSyncFile(syncCfg);
+      if (current) {
+        const remoteTime = timeOf(remoteTimeOf(current.text));
+        if (remoteTime > timeOf(state.updatedAt) + 1000) {
+          const remote = await decryptPayload(syncCfg, current.text);
+          applyRemote(remote.state);
+          setSyncStatus('ok', '云端有更新的数据，已拉取');
+          if (showToast) toast('已拉取云端更新 ☁️');
+          sync.busy = false;
+          return true;
+        }
+      }
+      await ghPutSyncFile(syncCfg, await encryptState(), current ? current.sha : null);
+      sync.lastSync = Date.now();
+      setSyncStatus('ok', '已同步到云端');
+      if (showToast) toast('已同步到云端 ☁️');
+      return true;
+    } catch (e) {
+      setSyncStatus('error', friendlySyncError(e));
+      sync.ready = false;
+      return false;
+    } finally {
+      sync.busy = false;
+    }
+  }
+
+  function remoteTimeOf(text) {
+    try { const j = JSON.parse(text); return j && j.updatedAt ? j.updatedAt : ''; } catch (e) { return ''; }
+  }
+
+  async function pullRemote(showToast) {
+    if (!syncCfg || !syncCfg.enabled) { setSyncStatus('off', '未开启同步'); return false; }
+    if (sync.busy) return false;
+    sync.busy = true;
+    setSyncStatus('syncing', '正在检查云端…');
+    try {
+      const current = await ghGetSyncFile(syncCfg);
+      if (!current) {
+        await ghPutSyncFile(syncCfg, await encryptState(), null);
+        sync.ready = true;
+        sync.lastSync = Date.now();
+        setSyncStatus('ok', '云端已创建，本机数据已上传');
+        if (showToast) toast('云端已创建 ☁️');
+        return true;
+      }
+      const remote = await decryptPayload(syncCfg, current.text);
+      const remoteTime = timeOf(remote.updatedAt);
+      const localTime = timeOf(state.updatedAt);
+      if (remoteTime > localTime) {
+        applyRemote(remote.state);
+        setSyncStatus('ok', '已拉取云端更新');
+        if (showToast) toast('已拉取云端更新 ☁️');
+      } else if (localTime > remoteTime) {
+        await ghPutSyncFile(syncCfg, await encryptState(), current.sha);
+        sync.lastSync = Date.now();
+        setSyncStatus('ok', '本机数据已上传');
+        if (showToast) toast('本机数据已上传 ☁️');
+      } else {
+        sync.lastSync = Date.now();
+        setSyncStatus('ok', '已是最新');
+        if (showToast) toast('已是最新 ☁️');
+      }
+      sync.ready = true;
+      return true;
+    } catch (e) {
+      sync.ready = false;
+      setSyncStatus('error', friendlySyncError(e));
+      return false;
+    } finally {
+      sync.busy = false;
+    }
+  }
+
+  async function bootstrapSync() {
+    syncCfg = loadSyncCfg();
+    if (!syncCfg || !syncCfg.enabled) {
+      setSyncStatus('off', '');
+      return;
+    }
+    setSyncStatus('syncing', '正在同步…');
+    await pullRemote(false);
+  }
+
+  function guessRepo() {
+    const host = location.hostname || '';
+    const m = host.match(/^([^.]+)\.github\.io$/i);
+    if (m) {
+      const seg = location.pathname.split('/').filter(Boolean)[0];
+      if (seg) return m[1] + '/' + seg;
+    }
+    return '';
+  }
+
+  function openSyncDialog() {
+    const on = !!(syncCfg && syncCfg.enabled);
+    if (!formSync.elements.repo.value) {
+      formSync.elements.repo.value = on ? syncCfg.repo : guessRepo();
+      formSync.elements.token.value = on ? syncCfg.token : '';
+      formSync.elements.pass.value = on ? syncCfg.pass : '';
+    }
+    if (!on) hideSyncChoice();
+    updateSyncUI();
+    openDialog(dlgSync);
+  }
+
+  function showSyncChoice(remoteTotal) {
+    const info = $('#syncInfo');
+    info.hidden = false;
+    info.innerHTML = '云端已有数据（共 ' + fmtMoney(remoteTotal) + '），本机也有（共 ' + fmtMoney(total()) + '）。<br>要用哪边？';
+    $('#syncChoice').hidden = false;
+    setSyncStatus('ok', '云端和本机都有数据，请选一边');
+  }
+
+  function hideSyncChoice() {
+    const info = $('#syncInfo');
+    const choice = $('#syncChoice');
+    if (info) info.hidden = true;
+    if (choice) choice.hidden = true;
+    pendingRemote = null;
+  }
+
+  async function connectSync(cfg) {
+    if (sync.busy) return;
+    sync.busy = true;
+    hideSyncChoice();
+    setSyncStatus('syncing', '正在连接 GitHub…');
+    try {
+      const info = await ghRepoInfo(cfg);
+      const branch = String(info.default_branch || 'main');
+      const nextCfg = { repo: cfg.repo, token: cfg.token, pass: cfg.pass, enabled: true, branch: branch };
+      const current = await ghGetSyncFile({ repo: nextCfg.repo, token: nextCfg.token, pass: nextCfg.pass, branch: branch });
+      if (!current) {
+        syncCfg = nextCfg;
+        saveSyncCfg();
+        await ghPutSyncFile(syncCfg, await encryptState(), null);
+        sync.ready = true;
+        sync.lastSync = Date.now();
+        setSyncStatus('ok', '已开启，本机数据已加密上传');
+        toast('云同步已开启 ☁️');
+        updateSyncUI();
+        dlgSync.close();
+        if (formSync.elements.pass) formSync.elements.pass.value = nextCfg.pass;
+        return;
+      }
+      const remote = await decryptPayload(nextCfg, current.text);
+      const remoteTime = timeOf(remote.updatedAt);
+      const localTime = timeOf(state.updatedAt);
+      const localFresh = state.accounts.length === 0 && !state.updatedAt;
+      syncCfg = nextCfg;
+      saveSyncCfg();
+      if (localFresh || remoteTime > localTime) {
+        applyRemote(remote.state);
+        sync.ready = true;
+        sync.lastSync = Date.now();
+        setSyncStatus('ok', '已开启，已拉取云端数据');
+        toast('已拉取云端数据 ☁️');
+        updateSyncUI();
+        dlgSync.close();
+        return;
+      }
+      pendingRemote = { state: normalize(remote.state), sha: current.sha };
+      showSyncChoice(stateTotal(normalize(remote.state)));
+    } catch (e) {
+      sync.ready = false;
+      setSyncStatus('error', friendlySyncError(e));
+    } finally {
+      sync.busy = false;
+      updateSyncUI();
+    }
+  }
+
+  async function useRemote() {
+    if (!pendingRemote || !syncCfg) return;
+    applyRemote(pendingRemote.state);
+    sync.ready = true;
+    sync.lastSync = Date.now();
+    hideSyncChoice();
+    setSyncStatus('ok', '已用云端数据覆盖本机');
+    toast('已用云端数据 ☁️');
+    updateSyncUI();
+    dlgSync.close();
+  }
+
+  async function useLocal() {
+    if (!pendingRemote || !syncCfg || sync.busy) return;
+    sync.busy = true;
+    const sha = pendingRemote.sha;
+    setSyncStatus('syncing', '正在上传本机数据…');
+    try {
+      await ghPutSyncFile(syncCfg, await encryptState(), sha);
+      sync.ready = true;
+      sync.lastSync = Date.now();
+      hideSyncChoice();
+      setSyncStatus('ok', '已用本机数据覆盖云端');
+      toast('已用本机数据覆盖云端 ☁️');
+      updateSyncUI();
+      dlgSync.close();
+    } catch (e) {
+      setSyncStatus('error', friendlySyncError(e));
+    } finally {
+      sync.busy = false;
+      updateSyncUI();
+    }
+  }
+
+  $('#btnSync').addEventListener('click', openSyncDialog);
+  $('#btnSyncNow').addEventListener('click', () => { pullRemote(true); });
+  $('#btnUseRemote').addEventListener('click', useRemote);
+  $('#btnUseLocal').addEventListener('click', useLocal);
+  $('#btnDisconnect').addEventListener('click', () => {
+    const wasOn = !!(syncCfg && syncCfg.enabled);
+    resetSync();
+    formSync.elements.token.value = '';
+    formSync.elements.pass.value = '';
+    hideSyncChoice();
+    setSyncStatus('off', '已断开同步，本机数据还在');
+    if (wasOn) toast('已断开云同步');
+  });
+  formSync.addEventListener('submit', ev => {
+    ev.preventDefault();
+    const fd = new FormData(formSync);
+    const parsed = parseRepo(fd.get('repo'));
+    const token = String(fd.get('token') || '').trim();
+    const pass = String(fd.get('pass') || '');
+    if (!parsed) { setSyncStatus('error', '仓库格式要写成「用户名/仓库名」'); return; }
+    if (token.length < 10) { setSyncStatus('error', '访问令牌看起来不完整'); return; }
+    if (pass.length < 6) { setSyncStatus('error', '同步密码至少 6 位，建议长一点'); return; }
+    connectSync({ repo: parsed.owner + '/' + parsed.repo, token: token, pass: pass, enabled: true, branch: 'main' });
+  });
+
+  window.addEventListener('online', () => {
+    if (syncCfg && syncCfg.enabled && !sync.ready) pullRemote(false);
+  });
+
+  function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    if (!window.isSecureContext) return;
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+
+  /* ---------- init ---------- */
+  upsertSnapshot();
+  persist();
+  render();
+  bootstrapSync();
+  registerServiceWorker();
+})();
+</script>
+</body>
+</html>
